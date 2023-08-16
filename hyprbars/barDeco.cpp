@@ -90,6 +90,14 @@ void CHyprBar::onMouseDown(wlr_pointer_button_event* e) {
         return;
     }
 
+    currentPos.x -= BUTTONS_PAD + *PBUTTONSIZE;
+
+    if (VECINRECT(COORDS, currentPos.x, currentPos.y, currentPos.x + *PBUTTONSIZE + BUTTONS_PAD, currentPos.y + *PBUTTONSIZE + BUTTONS_PAD)) {
+        // hit on minimize
+        g_pKeybindManager->m_mDispatchers["movetoworkspacesilent"]("special");
+        return;
+    }
+
     m_bDragPending = true;
 }
 
@@ -135,7 +143,7 @@ void CHyprBar::renderBarTitle(const Vector2D& bufferSize) {
     pango_font_description_free(fontDesc);
 
     const int leftPadding  = *PBORDERSIZE + BARPADDING;
-    const int rightPadding = (*PBUTTONSIZE * 2) + (BUTTONS_PAD * 3) + *PBORDERSIZE + BARPADDING;
+    const int rightPadding = (*PBUTTONSIZE * 3) + (BUTTONS_PAD * 4) + *PBORDERSIZE + BARPADDING;
     const int maxWidth     = bufferSize.x - leftPadding - rightPadding;
 
     pango_layout_set_width(layout, maxWidth * PANGO_SCALE);
@@ -177,6 +185,7 @@ void CHyprBar::renderBarTitle(const Vector2D& bufferSize) {
 void CHyprBar::renderBarButtons(const Vector2D& bufferSize, const float scale) {
     static auto* const PCLOSECOLOR = &HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyprbars:buttons:col.close")->intValue;
     static auto* const PMAXCOLOR   = &HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyprbars:buttons:col.maximize")->intValue;
+    static auto* const PMINCOLOR   = &HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyprbars:buttons:col.minimize")->intValue;
     static auto* const PBUTTONSIZE = &HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyprbars:buttons:button_size")->intValue;
 
     const auto scaledButtonSize = *PBUTTONSIZE * scale;
@@ -191,7 +200,7 @@ void CHyprBar::renderBarButtons(const Vector2D& bufferSize, const float scale) {
     cairo_paint(CAIRO);
     cairo_restore(CAIRO);
 
-    // draw buttons for close and max
+    // draw buttons for close, max, and min
 
     auto drawButton = [&](Vector2D pos, CColor col) -> void {
         const int X      = pos.x;
@@ -210,6 +219,10 @@ void CHyprBar::renderBarButtons(const Vector2D& bufferSize, const float scale) {
     currentPos.x -= scaledButtonPadding + scaledButtonSize;
 
     drawButton(currentPos, CColor(*PMAXCOLOR));
+
+    currentPos.x -= scaledButtonPadding + scaledButtonSize;
+
+    drawButton(currentPos, CColor(*PMINCOLOR));
 
     // copy the data to an OpenGL texture we have
     const auto DATA = cairo_image_surface_get_data(CAIROSURFACE);
