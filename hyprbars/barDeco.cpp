@@ -92,7 +92,7 @@ void CHyprBar::onMouseDown(wlr_pointer_button_event* e) {
     currentPos.x -= BUTTONS_PAD + *PBUTTONSIZE;
     if (VECINRECT(COORDS, currentPos.x, currentPos.y, currentPos.x + *PBUTTONSIZE + BUTTONS_PAD, currentPos.y + *PBUTTONSIZE)) {
         // hit on minimize
-        g_pKeybindManager->m_mDispatchers["movetoworkspacesilent"]("special");
+        g_pKeybindManager->m_mDispatchers["movetoworkspacesilent"]("special:minimised");
         return;
     }
 
