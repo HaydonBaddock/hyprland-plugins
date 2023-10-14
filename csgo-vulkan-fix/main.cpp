@@ -30,7 +30,7 @@ void onNewWindow(void* self, std::any data) {
     // data is guaranteed
     auto* const PWINDOW = std::any_cast<CWindow*>(data);
 
-    if (g_pXWaylandManager->getAppIDClass(PWINDOW) == "csgo_linux64") {
+    if (g_pXWaylandManager->getAppIDClass(PWINDOW) == "cs2") {
         pCSGOSurface   = g_pXWaylandManager->getWindowSurface(PWINDOW);
         pCSGOXWSurface = PWINDOW->m_uSurface.xwayland;
         csgoMonitor    = PWINDOW->m_iMonitorID;
@@ -41,7 +41,7 @@ void hkNotifyMotion(wlr_seat* wlr_seat, uint32_t time_msec, double sx, double sy
     static auto* const RESX = &HyprlandAPI::getConfigValue(PHANDLE, "plugin:csgo-vulkan-fix:res_w")->intValue;
     static auto* const RESY = &HyprlandAPI::getConfigValue(PHANDLE, "plugin:csgo-vulkan-fix:res_h")->intValue;
 
-    if (g_pCompositor->m_pLastWindow && g_pCompositor->m_pLastWindow->m_szInitialClass == "csgo_linux64" && g_pCompositor->m_pLastMonitor) {
+    if (g_pCompositor->m_pLastWindow && g_pCompositor->m_pLastWindow->m_szInitialClass == "cs2" && g_pCompositor->m_pLastMonitor) {
         // fix the coords
         sx *= *RESX / g_pCompositor->m_pLastMonitor->vecSize.x;
         sy *= *RESY / g_pCompositor->m_pLastMonitor->vecSize.y;
@@ -62,7 +62,7 @@ void hkSetWindowSize(wlr_xwayland_surface* surface, int16_t x, int16_t y, uint16
     const auto SURF    = surface->surface;
     const auto PWINDOW = g_pCompositor->getWindowFromSurface(SURF);
 
-    if (PWINDOW && PWINDOW->m_szInitialClass == "csgo_linux64") {
+    if (PWINDOW && PWINDOW->m_szInitialClass == "cs2") {
         width  = *RESX;
         height = *RESY;
     }
@@ -97,11 +97,11 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     HyprlandAPI::registerCallbackDynamic(PHANDLE, "openWindow", [&](void* self, std::any data) { onNewWindow(self, data); });
 
     if (hkResult)
-        HyprlandAPI::addNotification(PHANDLE, "[csgo-vulkan-fix] Initialized successfully!", CColor{0.2, 1.0, 0.2, 1.0}, 5000);
+        HyprlandAPI::addNotification(PHANDLE, "[csgo-vulkan-fix] Initialized successfully! (CS2 version)", CColor{0.2, 1.0, 0.2, 1.0}, 5000);
     else
         HyprlandAPI::addNotification(PHANDLE, "[csgo-vulkan-fix] Failure in initialization (hook failed)!", CColor{1.0, 0.2, 0.2, 1.0}, 5000);
 
-    return {"csgo-vulkan-fix", "A plugin to fix incorrect mouse offsets on csgo in Vulkan", "Vaxry", "1.0"};
+    return {"csgo-vulkan-fix", "A plugin to fix incorrect mouse offsets on csgo in Vulkan", "Vaxry", "1.1"};
 }
 
 APICALL EXPORT void PLUGIN_EXIT() {
