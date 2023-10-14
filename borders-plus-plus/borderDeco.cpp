@@ -5,8 +5,7 @@
 
 #include "globals.hpp"
 
-CBordersPlusPlus::CBordersPlusPlus(CWindow* pWindow) {
-    m_pWindow         = pWindow;
+CBordersPlusPlus::CBordersPlusPlus(CWindow* pWindow) : IHyprWindowDecoration(pWindow), m_pWindow(pWindow) {
     m_vLastWindowPos  = pWindow->m_vRealPosition.vec();
     m_vLastWindowSize = pWindow->m_vRealSize.vec();
 }
@@ -59,7 +58,7 @@ void CBordersPlusPlus::draw(CMonitor* pMonitor, float a, const Vector2D& offset)
     g_pHyprOpenGL->scissor((wlr_box*)nullptr);
 
     scaleBox(&fullBox, pMonitor->scale);
-    g_pHyprOpenGL->renderBorder(&fullBox, CColor(*PCOLOR1), *PROUNDING == 0 ? 0 : *PROUNDING * pMonitor->scale + *PBORDERSIZE * 2, a);
+    g_pHyprOpenGL->renderBorder(&fullBox, CColor(*PCOLOR1), *PROUNDING == 0 ? 0 : *PROUNDING * pMonitor->scale + *PBORDERSIZE * 2, *PBORDERSIZE, a);
 
     // pass 2
 
@@ -85,7 +84,7 @@ void CBordersPlusPlus::draw(CMonitor* pMonitor, float a, const Vector2D& offset)
     g_pHyprOpenGL->scissor((wlr_box*)nullptr);
 
     scaleBox(&fullBox, pMonitor->scale);
-    g_pHyprOpenGL->renderBorder(&fullBox, CColor(*PCOLOR2), *PROUNDING == 0 ? 0 : *PROUNDING * pMonitor->scale + *PBORDERSIZE * 4, a);
+    g_pHyprOpenGL->renderBorder(&fullBox, CColor(*PCOLOR2), *PROUNDING == 0 ? 0 : *PROUNDING * pMonitor->scale + *PBORDERSIZE * 4, *PBORDERSIZE, a);
 }
 
 eDecorationType CBordersPlusPlus::getDecorationType() {
