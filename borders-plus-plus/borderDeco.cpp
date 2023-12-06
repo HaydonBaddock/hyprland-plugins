@@ -14,8 +14,46 @@ CBordersPlusPlus::~CBordersPlusPlus() {
     damageEntire();
 }
 
-SWindowDecorationExtents CBordersPlusPlus::getWindowDecorationExtents() {
-    return m_seExtents;
+SDecorationPositioningInfo CBordersPlusPlus::getPositioningInfo() {
+    static auto* const           PBORDERS = &HyprlandAPI::getConfigValue(PHANDLE, "plugin:borders-plus-plus:add_borders")->intValue;
+
+    static std::vector<int64_t*> PSIZES;
+    for (size_t i = 0; i < 9; ++i) {
+        PSIZES.push_back(&HyprlandAPI::getConfigValue(PHANDLE, "plugin:borders-plus-plus:border_size_" + std::to_string(i + 1))->intValue);
+    }
+
+    SDecorationPositioningInfo info;
+    info.policy   = DECORATION_POSITION_ABSOLUTE;
+    info.reserved = true;
+    info.priority = 1005;
+    info.edges    = DECORATION_EDGE_BOTTOM | DECORATION_EDGE_LEFT | DECORATION_EDGE_RIGHT | DECORATION_EDGE_TOP;
+
+    if (m_fLastThickness == 0) {
+        double size = 0;
+
+        for (size_t i = 0; i < *PBORDERS; ++i) {
+            size += *PSIZES[i];
+        }
+
+        info.desiredExtents = {{size, size}, {size, size}};
+        m_fLastThickness    = size;
+    } else {
+        info.desiredExtents = {{m_fLastThickness, m_fLastThickness}, {m_fLastThickness, m_fLastThickness}};
+    }
+
+    return info;
+}
+
+void CBordersPlusPlus::onPositioningReply(const SDecorationPositioningReply& reply) {
+    ; // ignored
+}
+
+uint64_t CBordersPlusPlus::getDecorationFlags() {
+    return 0;
+}
+
+eDecorationLayer CBordersPlusPlus::getDecorationLayer() {
+    return DECORATION_LAYER_OVER;
 }
 
 void CBordersPlusPlus::draw(CMonitor* pMonitor, float a, const Vector2D& offset) {
@@ -25,66 +63,68 @@ void CBordersPlusPlus::draw(CMonitor* pMonitor, float a, const Vector2D& offset)
     if (!m_pWindow->m_sSpecialRenderData.decorate)
         return;
 
-    static auto* const PCOLOR1     = &HyprlandAPI::getConfigValue(PHANDLE, "plugin:borders-plus-plus:col.border_1")->intValue;
-    static auto* const PCOLOR2     = &HyprlandAPI::getConfigValue(PHANDLE, "plugin:borders-plus-plus:col.border_2")->intValue;
-    static auto* const PBORDERS    = &HyprlandAPI::getConfigValue(PHANDLE, "plugin:borders-plus-plus:add_borders")->intValue;
-    static auto* const PROUNDING   = &HyprlandAPI::getConfigValue(PHANDLE, "decoration:rounding")->intValue;
-    static auto* const PBORDERSIZE = &HyprlandAPI::getConfigValue(PHANDLE, "general:border_size")->intValue;
+    static std::vector<int64_t*> PCOLORS;
+    static std::vector<int64_t*> PSIZES;
+    for (size_t i = 0; i < 9; ++i) {
+        PCOLORS.push_back(&HyprlandAPI::getConfigValue(PHANDLE, "plugin:borders-plus-plus:col.border_" + std::to_string(i + 1))->intValue);
+        PSIZES.push_back(&HyprlandAPI::getConfigValue(PHANDLE, "plugin:borders-plus-plus:border_size_" + std::to_string(i + 1))->intValue);
+    }
+    static auto* const PBORDERS      = &HyprlandAPI::getConfigValue(PHANDLE, "plugin:borders-plus-plus:add_borders")->intValue;
+    static auto* const PNATURALROUND = &HyprlandAPI::getConfigValue(PHANDLE, "plugin:borders-plus-plus:natural_rounding")->intValue;
+    static auto* const PROUNDING     = &HyprlandAPI::getConfigValue(PHANDLE, "decoration:rounding")->intValue;
+    static auto* const PBORDERSIZE   = &HyprlandAPI::getConfigValue(PHANDLE, "general:border_size")->intValue;
 
     if (*PBORDERS < 1)
         return;
 
-    const auto ROUNDING = !m_pWindow->m_sSpecialRenderData.rounding ?
-        0 :
-        (m_pWindow->m_sAdditionalConfigData.rounding.toUnderlying() == -1 ? *PROUNDING : m_pWindow->m_sAdditionalConfigData.rounding.toUnderlying());
+    const auto PWORKSPACE      = g_pCompositor->getWorkspaceByID(m_pWindow->m_iWorkspaceID);
+    const auto WORKSPACEOFFSET = PWORKSPACE && !m_pWindow->m_bPinned ? PWORKSPACE->m_vRenderOffset.vec() : Vector2D();
 
-    // draw the border
-    wlr_box fullBox = {(int)(m_vLastWindowPos.x - *PBORDERSIZE), (int)(m_vLastWindowPos.y - *PBORDERSIZE), (int)(m_vLastWindowSize.x + 2.0 * *PBORDERSIZE),
-                       (int)(m_vLastWindowSize.y + 2.0 * *PBORDERSIZE)};
+    auto       rounding      = m_pWindow->rounding() == 0 ? 0 : m_pWindow->rounding() * pMonitor->scale + *PBORDERSIZE;
+    const auto ORIGINALROUND = rounding == 0 ? 0 : m_pWindow->rounding() * pMonitor->scale + *PBORDERSIZE;
+    CBox       fullBox       = {m_vLastWindowPos.x, m_vLastWindowPos.y, m_vLastWindowSize.x, m_vLastWindowSize.y};
 
-    fullBox.x -= pMonitor->vecPosition.x;
-    fullBox.y -= pMonitor->vecPosition.y;
+    fullBox.translate(offset - pMonitor->vecPosition + WORKSPACEOFFSET);
 
-    m_seExtents = {{m_vLastWindowPos.x - fullBox.x - pMonitor->vecPosition.x + 2, m_vLastWindowPos.y - fullBox.y - pMonitor->vecPosition.y + 2},
-                   {fullBox.x + fullBox.width + pMonitor->vecPosition.x - m_vLastWindowPos.x - m_vLastWindowSize.x + 2,
-                    fullBox.y + fullBox.height + pMonitor->vecPosition.y - m_vLastWindowPos.y - m_vLastWindowSize.y + 2}};
+    double fullThickness = 0;
 
-    fullBox.x += offset.x;
-    fullBox.y += offset.y;
+    fullBox.x -= *PBORDERSIZE;
+    fullBox.y -= *PBORDERSIZE;
+    fullBox.width += *PBORDERSIZE * 2;
+    fullBox.height += *PBORDERSIZE * 2;
 
-    if (fullBox.width < 1 || fullBox.height < 1)
-        return; // don't draw invisible shadows
+    for (size_t i = 0; i < *PBORDERS; ++i) {
+        const int PREVBORDERSIZE = i == 0 ? 0 : (*PSIZES[i - 1] == -1 ? *PBORDERSIZE : *PSIZES[i - 1]);
+        const int THISBORDERSIZE = *PSIZES[i] == -1 ? *PBORDERSIZE : *PSIZES[i];
 
-    g_pHyprOpenGL->scissor((wlr_box*)nullptr);
+        if (i != 0) {
+            rounding += rounding == 0 ? 0 : PREVBORDERSIZE;
+            fullBox.x -= PREVBORDERSIZE;
+            fullBox.y -= PREVBORDERSIZE;
+            fullBox.width += PREVBORDERSIZE * 2;
+            fullBox.height += PREVBORDERSIZE * 2;
+        }
 
-    scaleBox(&fullBox, pMonitor->scale);
-    g_pHyprOpenGL->renderBorder(&fullBox, CColor(*PCOLOR1), *PROUNDING == 0 ? 0 : *PROUNDING * pMonitor->scale + *PBORDERSIZE * 2, *PBORDERSIZE, a);
+        if (fullBox.width < 1 || fullBox.height < 1)
+            break;
 
-    // pass 2
+        g_pHyprOpenGL->scissor((CBox*)nullptr);
+        CBox saveBox = fullBox;
+        saveBox.scale(pMonitor->scale).round();
 
-    if (*PBORDERS < 2)
-        return;
+        g_pHyprOpenGL->renderBorder(&fullBox, CColor{(uint64_t)*PCOLORS[i]}, *PNATURALROUND ? ORIGINALROUND : rounding, THISBORDERSIZE, a, *PNATURALROUND ? ORIGINALROUND : -1);
 
-    fullBox = {(int)(m_vLastWindowPos.x - *PBORDERSIZE * 2), (int)(m_vLastWindowPos.y - *PBORDERSIZE * 2), (int)(m_vLastWindowSize.x + 2.0 * *PBORDERSIZE * 2),
-               (int)(m_vLastWindowSize.y + 2.0 * *PBORDERSIZE * 2)};
+        fullBox = saveBox;
 
-    fullBox.x -= pMonitor->vecPosition.x;
-    fullBox.y -= pMonitor->vecPosition.y;
+        fullThickness += THISBORDERSIZE;
+    }
 
-    m_seExtents = {{m_vLastWindowPos.x - fullBox.x - pMonitor->vecPosition.x + 2, m_vLastWindowPos.y - fullBox.y - pMonitor->vecPosition.y + 2},
-                   {fullBox.x + fullBox.width + pMonitor->vecPosition.x - m_vLastWindowPos.x - m_vLastWindowSize.x + 2,
-                    fullBox.y + fullBox.height + pMonitor->vecPosition.y - m_vLastWindowPos.y - m_vLastWindowSize.y + 2}};
+    m_seExtents = {{fullThickness, fullThickness}, {fullThickness, fullThickness}};
 
-    fullBox.x += offset.x;
-    fullBox.y += offset.y;
-
-    if (fullBox.width < 1 || fullBox.height < 1)
-        return; // don't draw invisible shadows
-
-    g_pHyprOpenGL->scissor((wlr_box*)nullptr);
-
-    scaleBox(&fullBox, pMonitor->scale);
-    g_pHyprOpenGL->renderBorder(&fullBox, CColor(*PCOLOR2), *PROUNDING == 0 ? 0 : *PROUNDING * pMonitor->scale + *PBORDERSIZE * 4, *PBORDERSIZE, a);
+    if (fullThickness != m_fLastThickness) {
+        m_fLastThickness = fullThickness;
+        g_pDecorationPositioner->repositionDeco(this);
+    }
 }
 
 eDecorationType CBordersPlusPlus::getDecorationType() {
@@ -92,18 +132,14 @@ eDecorationType CBordersPlusPlus::getDecorationType() {
 }
 
 void CBordersPlusPlus::updateWindow(CWindow* pWindow) {
-    const auto PWORKSPACE = g_pCompositor->getWorkspaceByID(pWindow->m_iWorkspaceID);
-
-    const auto WORKSPACEOFFSET = PWORKSPACE && !pWindow->m_bPinned ? PWORKSPACE->m_vRenderOffset.vec() : Vector2D();
-
-    m_vLastWindowPos  = pWindow->m_vRealPosition.vec() + WORKSPACEOFFSET;
+    m_vLastWindowPos  = pWindow->m_vRealPosition.vec();
     m_vLastWindowSize = pWindow->m_vRealSize.vec();
 
     damageEntire();
 }
 
 void CBordersPlusPlus::damageEntire() {
-    wlr_box dm = {(int)(m_vLastWindowPos.x - m_seExtents.topLeft.x), (int)(m_vLastWindowPos.y - m_seExtents.topLeft.y),
-                  (int)(m_vLastWindowSize.x + m_seExtents.topLeft.x + m_seExtents.bottomRight.x), (int)m_seExtents.topLeft.y};
+    CBox dm = {(int)(m_vLastWindowPos.x - m_seExtents.topLeft.x), (int)(m_vLastWindowPos.y - m_seExtents.topLeft.y),
+               (int)(m_vLastWindowSize.x + m_seExtents.topLeft.x + m_seExtents.bottomRight.x), (int)m_seExtents.topLeft.y};
     g_pHyprRenderer->damageBox(&dm);
 }

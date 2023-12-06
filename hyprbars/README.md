@@ -2,7 +2,7 @@
 
 Adds simple title bars to windows.
 
-![preview](https://i.ibb.co/GkDTL4Q/20230228-23h20m36s-grim.png)
+![preview](https://i.ibb.co/hLDRCpT/20231029-22h30m05s.png)
 
 ## Config
 
@@ -11,10 +11,13 @@ All config options are in `plugin:hyprbars`:
 ```
 plugin {
     hyprbars {
-        # config
-        buttons {
-            # button config
-        }
+        # example config
+        bar_height = 20
+
+        # example buttons (R -> L)
+        # hyprbars-button = color, size, on-click
+        hyprbars-button = rgb(ff4040), 10, 󰖭, hyprctl dispatch killactive
+        hyprbars-button = rgb(eeee11), 10, , hyprctl dispatch fullscreen 1
     }
 }
 ```
@@ -29,10 +32,12 @@ plugin {
 
 `bar_text_font` -> (str) bar's title text font (default "Sans")
 
+`bar_part_of_window` -> (bool) whether the bar is a part of the main window (if it is, stuff like shadows render around it)
+
 ## Buttons Config
 
-`button_size` -> (int) the size of the buttons.
+Use the `hyprbars-button` keyword.
 
-`col.maximize` -> (col) maximize button color
-
-`col.close` -> (col) close button color
+```ini
+hyprbars-button = color, size, icon, on-click
+```

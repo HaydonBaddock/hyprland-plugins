@@ -19,29 +19,39 @@ void onNewWindow(void* self, std::any data) {
     // data is guaranteed
     auto* const PWINDOW = std::any_cast<CWindow*>(data);
 
-    HyprlandAPI::addWindowDecoration(PHANDLE, PWINDOW, new CBordersPlusPlus(PWINDOW));
+    HyprlandAPI::addWindowDecoration(PHANDLE, PWINDOW, std::make_unique<CBordersPlusPlus>(PWINDOW));
 }
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     PHANDLE = handle;
 
-    HyprlandAPI::addConfigValue(PHANDLE, "plugin:borders-plus-plus:add_borders", SConfigValue{.intValue = 1});
-    HyprlandAPI::addConfigValue(PHANDLE, "plugin:borders-plus-plus:col.border_1", SConfigValue{.intValue = configStringToInt("rgba(000000ee)")});
-    HyprlandAPI::addConfigValue(PHANDLE, "plugin:borders-plus-plus:col.border_2", SConfigValue{.intValue = configStringToInt("rgba(000000ee)")});
+    const std::string HASH = __hyprland_api_get_hash();
 
-    HyprlandAPI::registerCallbackDynamic(PHANDLE, "openWindow", [&](void* self, std::any data) { onNewWindow(self, data); });
+    if (HASH != GIT_COMMIT_HASH) {
+        HyprlandAPI::addNotification(PHANDLE, "[borders-plus-plus] Failure in initialization: Version mismatch (headers ver is not equal to running hyprland ver)",
+                                     CColor{1.0, 0.2, 0.2, 1.0}, 5000);
+        throw std::runtime_error("[bpp] Version mismatch");
+    }
+
+    HyprlandAPI::addConfigValue(PHANDLE, "plugin:borders-plus-plus:add_borders", SConfigValue{.intValue = 1});
+    HyprlandAPI::addConfigValue(PHANDLE, "plugin:borders-plus-plus:natural_rounding", SConfigValue{.intValue = 1});
+
+    for (size_t i = 0; i < 9; ++i) {
+        HyprlandAPI::addConfigValue(PHANDLE, "plugin:borders-plus-plus:col.border_" + std::to_string(i + 1), SConfigValue{.intValue = configStringToInt("rgba(000000ee)")});
+        HyprlandAPI::addConfigValue(PHANDLE, "plugin:borders-plus-plus:border_size_" + std::to_string(i + 1), SConfigValue{.intValue = -1});
+    }
+
+    HyprlandAPI::reloadConfig();
+
+    HyprlandAPI::registerCallbackDynamic(PHANDLE, "openWindow", [&](void* self, SCallbackInfo& info, std::any data) { onNewWindow(self, data); });
 
     // add deco to existing windows
     for (auto& w : g_pCompositor->m_vWindows) {
         if (w->isHidden() || !w->m_bIsMapped)
             continue;
 
-        HyprlandAPI::addNotification(PHANDLE, "b", CColor{0.2, 1.0, 0.2, 1.0}, 2000);
-
-        HyprlandAPI::addWindowDecoration(PHANDLE, w.get(), new CBordersPlusPlus(w.get()));
+        HyprlandAPI::addWindowDecoration(PHANDLE, w.get(), std::make_unique<CBordersPlusPlus>(w.get()));
     }
-
-    HyprlandAPI::reloadConfig();
 
     HyprlandAPI::addNotification(PHANDLE, "[borders-plus-plus] Initialized successfully!", CColor{0.2, 1.0, 0.2, 1.0}, 5000);
 
